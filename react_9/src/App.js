@@ -1,7 +1,13 @@
 import './App.css'
 
-import { useState, Fragment } from 'react'
+import {
+  useState,
+  useCallback,
+  useEffect,
+  Fragment
+} from 'react'
 import List from './components/List/List'
+import Add from './components/List/Item/Add'
 
 
 
@@ -12,9 +18,10 @@ function App() {
   const [list, setList] = useState([])
   const [status, setStatus] = useState(false)
   const [error, setError] = useState('')
+
   
   
-  async function fetchHandler() {
+  const fetchHandler = useCallback(async () => {
 
     setStatus(true)
     setError(null)
@@ -30,7 +37,7 @@ function App() {
     try {
       const responce = await fetch(`https://dummyjson.com/products/category/${ filter }?select=title,price,description&limit=5`)
       if(!responce.ok) {
-	throw new Error('error')
+	throw new Error('error_fetch')
       }
       const data = await responce.json()
       setList(data.products)
@@ -39,12 +46,45 @@ function App() {
     }
     setStatus(false)
     
+  }, [])
+
+  const addHandler = async item => {
+
+    try {
+      const responce = await fetch('https://dummyjson.com/products/add', {
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({
+	  title: item.title,
+	  price: item.price,
+	  description: item.description
+	})
+      })
+      if(!responce.ok) {
+	throw new Error('error_add')
+      }
+      const data = await responce.json()
+      setList(previousList => {
+	data.id = `${ +list.reduce((previousItem, currentItem) => previousItem.id > currentItem.id ? previousItem : currentItem).id + 1 }`
+	return [
+	  data,
+	  ...previousList
+	]
+      })
+    } catch(error_) {
+      setError(error_.message)
+    }
+    
   }
 
-  const errorStatus = !(error === '')
+
+
+  useEffect(() => {
+    fetchHandler()
+  }, [fetchHandler])
+
   let content = null
-  console.log(list.length)
-  if(errorStatus) {
+  if(error) {
     content = (
 
       <p>{ error }</p>
@@ -76,6 +116,10 @@ function App() {
     <Fragment>
 
 
+
+      <section>
+	<Add onSubmit={ addHandler } />
+      </section>
       
       <section>
 	<button onClick={ fetchHandler }>
